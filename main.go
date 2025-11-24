@@ -8,6 +8,7 @@ import (
 
 var commands = map[string]struct{}{
     "init": {},
+	"hash-object": {},
 }
 
 func main() {
@@ -23,7 +24,19 @@ func main() {
         return
     }
 
-	if args[0] == "init" {
+	switch args[0] {
+	case "init": 
 		porcelain.Init()
+	case "hash-object":
+		hashObject(args)
 	}
+}
+
+func hashObject(args []string) {
+	if len(args) < 2 {
+		fmt.Print("Missing path to file name.")
+		return	
+	}
+	fmt.Println("Creating hash of the file")
+	porcelain.Stage(args[1])
 }

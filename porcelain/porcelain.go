@@ -3,6 +3,7 @@ package porcelain
 import (
 	"log"
 	"os"
+	"usamaqaisrani/git-good/plumbing"
 )
 
 const git = ".gitgood"
@@ -46,3 +47,6 @@ func writeFile(path, content string) {
 	}
 }
 
+func Stage(filePath string) {
+	plumbing.HashFile(filePath)
+}
