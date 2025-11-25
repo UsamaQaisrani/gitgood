@@ -4,9 +4,11 @@ import (
 	"log"
 	"os"
 	"fmt"
+	"path"
 	"usamaqaisrani/git-good/plumbing"
 )
 
+// Paths
 const git = ".gitgood"
 const config = git + "/config"
 const refs = git + "/refs"
@@ -25,6 +27,7 @@ func Init() {
 	writeFile(config, configContent)
 }
 
+//Create a directory at given path if it doesn't exist already
 func createDir(path string) {
 	err := os.Mkdir(path, 0755)
 	if err != nil {
@@ -33,6 +36,7 @@ func createDir(path string) {
 	}
 }
 
+// Write a file at given path with the content
 func writeFile(path string, content any) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0755)
 	if err != nil {
@@ -55,31 +59,30 @@ func writeFile(path string, content any) {
 	}
 }
 
-func writeObject(dirName, fileName string, content []byte) {
-	filePath := objects + "/" + dirName + "/" + fileName
-	fmt.Println(filePath)
-	createDir(objects + "/" + dirName)
-	writeFile(filePath, content)
-}
-
-func Stage(filePath string) {
-	stream, err := plumbing.ReadFile(filePath)
+// Stage the file at given path
+func Stage(path string) {
+	stream, err := plumbing.ReadFile(path)
 	if err != nil {
-		log.Fatalf("Error while getting content of the %s: %s", filePath, err)
+		log.Fatalf("Error while getting content of the %s: %s", path, err)
+		return
 	}
 
 	hash := plumbing.HashFile(stream)
 	if err != nil {
-		log.Fatalf("Error while hashing %s: %s", filePath, err)
+		log.Fatalf("Error while hashing %s: %s", path, err)
+		return
 	}
 
 	compressed, err := plumbing.Compress(stream) 
 	if err != nil {
-		log.Fatalf("Error while compressing %s: %s", filePath, err)
+		log.Fatalf("Error while compressing %s: %s", path, err)
+		return
 	}
 	fmt.Printf("Compressed (%d bytes): % x\n", len(compressed), compressed)
 
 	dirName := hash[:2]
 	fileName := hash[3:]
-	writeObject(dirName, fileName, compressed)
+	fullBlobPath := path.Join(objects, dirName, fileName)
+	createDir(path.Join(objects, dirName))
+	writeFile(fullBlobPath, compressed)
 }
