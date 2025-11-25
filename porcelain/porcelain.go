@@ -33,7 +33,7 @@ func createDir(path string) {
 	}
 }
 
-func writeFile(path, content string) {
+func writeFile(path string, content any) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0755)
 	if err != nil {
 		log.Fatal("Error occured while creating HEAD file:", err)
@@ -41,7 +41,14 @@ func writeFile(path, content string) {
 	}
 	defer f.Close()
 
-	_, err = f.WriteString(content)
+	switch v := content.(type) {
+	case string:
+		_, err = f.WriteString(v)
+	case []byte:
+		_, err = f.Write(v)
+	default:
+		fmt.Println("Unrecognized content type while writing file.")
+	}
 	if err != nil {
 		log.Fatalf("Error occured while writing %s: %s", path, err)
 		return
@@ -52,22 +59,7 @@ func writeObject(dirName, fileName string, content []byte) {
 	filePath := objects + "/" + dirName + "/" + fileName
 	fmt.Println(filePath)
 	createDir(objects + "/" + dirName)
-	writeRawBytes(filePath, content)
-}
-
-func writeRawBytes(path string, content []byte) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0755)
-	if err != nil {
-		log.Fatal("Error occured while creating HEAD file:", err)
-		return
-	}
-	defer f.Close()
-
-	_, err = f.Write(content)
-	if err != nil {
-		log.Fatalf("Error occured while writing %s: %s", path, err)
-		return
-	}
+	writeFile(filePath, content)
 }
 
 func Stage(filePath string) {
