@@ -197,8 +197,8 @@ func UpdateIndex(entries []StageEntry) error {
 	}
 	digest := sha1.Sum(indexBuf.Bytes())
 	indexBuf.Write(digest[:])
-	if _, err := os.Stat(".gitgood"); os.IsNotExist(err) {
-		os.Mkdir(".gitgood", 0755)
+	if _, err := os.Stat(git); os.IsNotExist(err) {
+		os.Mkdir(git, 0755)
 	}
 
 	return os.WriteFile(index, indexBuf.Bytes(), 0644)
@@ -232,14 +232,14 @@ func WalkDir(rootPath string) <-chan FileEntry {
 			}
 
 			if d.IsDir() {
-				if d.Name() == ".git" || d.Name() == ".gitgood" {
+				if d.Name() == ".git" || d.Name() == git {
 					return filepath.SkipDir
 				}
 				return nil
 			}
 
 			normPath := filepath.ToSlash(currPath)
-			if strings.Contains(normPath, ".git") || strings.Contains(normPath, ".gitgood") {
+			if strings.Contains(normPath, ".git") || strings.Contains(normPath, git) {
 				return nil
 			}
 
