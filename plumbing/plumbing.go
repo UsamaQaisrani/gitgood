@@ -38,6 +38,7 @@ type StageEntry struct {
 	Hash      string
 	Flags     uint16
 	Path      string
+	Name 	  string
 }
 
 type FileEntry struct {
@@ -199,10 +200,11 @@ func UpdateIndex(entries []StageEntry) error {
 	digest := sha1.Sum(indexBuf.Bytes())
 	indexBuf.Write(digest[:])
 	if _, err := os.Stat(git); os.IsNotExist(err) {
-		os.Mkdir(git, 0755)
+		CreateDir(git)
 	}
 
-	return os.WriteFile(index, indexBuf.Bytes(), 0644)
+	WriteFile(index, indexBuf.Bytes())
+	return nil
 }
 
 func WriteBlob(content []byte, hash string) error {
@@ -210,7 +212,6 @@ func WriteBlob(content []byte, hash string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Compressed (%d bytes): % x\n", len(compressed), compressed)
 
 	dirName := hash[:2]
 	fileName := hash[2:]

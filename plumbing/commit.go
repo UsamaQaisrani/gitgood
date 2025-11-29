@@ -2,10 +2,12 @@ package plumbing
 
 import (
 	"encoding/binary"
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
+	"sort"
 	"path/filepath"
 	"strings"
 )
@@ -14,6 +16,7 @@ type Node struct {
 	Name     string
 	Mode     uint32
 	Hash     string
+	Path 	 string
 	Children []*Node
 }
 
@@ -28,16 +31,12 @@ func ReadIndex() error {
 		return errors.New("Invalid header, not an index file.")
 	}
 
-	signature := binary.BigEndian.Uint32(content[4:8])
 	entryCount := binary.BigEndian.Uint32(content[8:12])
-	fmt.Println(header)
-	fmt.Println("Version:", signature)
-	fmt.Println("Entires count:", entryCount)
 
 	var entries []StageEntry
 	i := 12
 
-	for j := 0; j < 7; j++ {
+	for j := 0; j < int(entryCount); j++ {
 		cTimeSec := binary.BigEndian.Uint32(content[i : i+4])
 		i += 4
 		cTimeNano := binary.BigEndian.Uint32(content[i : i+4])
@@ -97,7 +96,7 @@ func ReadIndex() error {
 	return nil
 }
 
-func GenerateTree() (*Node, error) {
+func CreateDirTree() (*Node, error) {
 	root := "."
 	tree := &Node {
 		Name: filepath.Base(root),
@@ -115,7 +114,6 @@ func GenerateTree() (*Node, error) {
 			}
 
 			parent := nodeMap[filepath.Dir(currPath)]
-
 			node := &Node{
 				Name: d.Name(),
 				Mode: 0x81A4,
@@ -126,9 +124,9 @@ func GenerateTree() (*Node, error) {
 				if err != nil {
 					return err
 				}
-
 				hash := HashFile(content)
 				node.Hash = hash
+				node.Path = currPath
 			}
 			
 			parent.Children = append(parent.Children, node)
@@ -140,11 +138,64 @@ func GenerateTree() (*Node, error) {
 		return nil
 	})
 
-
 	if err != nil {
 		return tree, err
 	}
 
-	fmt.Println("Map:", nodeMap)
 	return tree, nil
 }
+
+func BuildObject(node *Node) (string, error) {
+
+	//If its a file with no children
+	if len(node.Children) < 1 {
+		return node.Hash, nil
+	}
+
+	var stageEntries []StageEntry
+
+	for _, child := range node.Children {
+		hash, err := BuildObject(child)
+		if err != nil {
+			return "", err
+		}
+
+		entry := StageEntry {
+			Name: child.Name,
+			Mode: child.Mode,
+			Hash: hash,
+		}
+		stageEntries = append(stageEntries,entry)
+	}
+
+	sort.Slice(stageEntries, func(i, j int) bool {
+		return stageEntries[i].Name < stageEntries[j].Name
+	})
+
+	var buff bytes.Buffer
+
+	for _, child := range stageEntries {
+		modeString := fmt.Sprintf("%o", child.Mode)
+		buff.WriteString(modeString) //Writing mode as string
+
+		buff.WriteByte(0x20) //Writing space as byte
+		buff.WriteString(child.Name)
+		buff.WriteByte(0x00) //Writing null byte
+
+		hashBytes, _ := hex.DecodeString(child.Hash)
+		buff.Write(hashBytes)
+	}
+
+	buffSize := buff.Len()
+	header := fmt.Sprintf("tree %d\x00", buffSize)
+	fullData := append([]byte(header), buff.Bytes()...)
+
+	treeHash := HashFile(fullData)
+
+	err := WriteBlob(fullData, treeHash)
+	if err != nil {
+		return "", nil
+	}
+	return treeHash, nil
+}
+

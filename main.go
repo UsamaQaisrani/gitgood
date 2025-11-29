@@ -70,5 +70,17 @@ func readIndex() {
 }
 
 func writeTree() {
-	plumbing.GenerateTree()
+	root, err := plumbing.CreateDirTree()
+	if err != nil {
+		fmt.Println("Error while creating tree of directory:", err)
+		return
+	}
+
+	treeHash, err := plumbing.BuildObject(root)
+	if err != nil {
+		fmt.Println("Error while building hash of the directory:", err)
+		return
+	}
+
+	fmt.Println("TreeHash: ", treeHash)
 }
